@@ -66,10 +66,11 @@ async def get_id(session, url, n):
     '''爬取图片id'''
     global ids
     response = await session.get(url, headers=header)
-    if response.status == 200:
-        print(f'HTTP:200 连接成功')
-    else:
-        print(f'HTTP:{response.status} 连接失败')
+    if n == 0:
+        if response.status == 200:
+            print('HTTP:200 连接成功')
+        else:
+            print(f'HTTP:{response.status} 连接失败')
     print(f'开始解析第{n + 1}页')
     html = await response.text()
     bf = BeautifulSoup(html, 'lxml')
