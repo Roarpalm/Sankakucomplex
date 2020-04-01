@@ -1,4 +1,4 @@
-import asyncio, aiohttp, os
+import asyncio, aiohttp, os, shutil
 from time import time
 from lxml import etree
 from bs4 import BeautifulSoup
@@ -9,8 +9,8 @@ good_ids = []
 hrefs = []
 fail_url_list = []
 n = 0
-start_date = input('输入开始日期（例：2017-07-01）：')
-end_date = input('输入结束日期（例：2017-08-01）：')
+start_date = input('输入开始日期（例：2020-01-01）：')
+end_date = input('输入结束日期（例：2020-02-01）：')
 url = f'https://idol.sankakucomplex.com/?tags=date%3A{start_date}..{end_date}%20order%3Aquality'
 # 新建文件夹
 b = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\'
@@ -60,6 +60,8 @@ async def main():
                     for i in fail_url_list:
                         f.write(i + '\n')
             print(f'{len(good_ids) - len(fail_url_list)}张图片下载完成')
+            # 文件分类
+            file_type()
 
 
 async def get_id(session, url, n):
@@ -96,7 +98,7 @@ async def get_id(session, url, n):
 
 def save_id():
     '''保存图片id并去重'''
-    global good_ids
+    global good_ids, old_ids
     with open('id.txt', 'r') as f:
         old_ids = f.read().splitlines()
         print(f'已爬取{len(old_ids)}张图片')
@@ -190,9 +192,47 @@ def save_href():
         for i in hrefs:
             f.write(i + '\n')
 
+
+
+def file_type():
+    mp4 = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\' + 'mp4'
+    webm = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\' + 'webm'
+    gif = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\' + 'gif'
+    if not os.path.exists(mp4):
+        os.makedirs(mp4)
+    if not os.path.exists(gif):
+        os.makedirs(gif)
+    if not os.path.exists(webm):
+        os.makedirs(webm)
+
+    now_list = os.listdir(b)
+    for i in now_list:
+        filename = os.path.join(b, i)
+        if i.split('.')[-1] == 'mp4':
+            shutil.move(filename, mp4)
+        if i.split('.')[-1] == 'webm':
+            shutil.move(filename, webm)
+        if i.split('.')[-1] == 'gif':
+            shutil.move(filename, gif)
+
+
+
+
+def run_main():
+    try:
+        loop = asyncio.get_event_loop()
+        future = asyncio.ensure_future(main())
+        loop.run_until_complete(future)
+        loop.run_until_complete(asyncio.sleep(0.250))
+        loop.close()
+    except (aiohttp.client_exceptions.ClientConnectionError, asyncio.exceptions.TimeoutError):
+        print('Connect Error')
+        with open('id.txt', 'w') as f:
+            for i in old_ids:
+                f.write(i + '\n')
+        input('回车以结束程序...')
+
 if __name__ == "__main__":
     start = time()
-    loop = asyncio.get_event_loop()
-    future = asyncio.ensure_future(main())
-    loop.run_until_complete(future)
+    run_main()
     print(f'用时{int((time()-start) // 60)}分{int((time()-start) % 60)}秒')
