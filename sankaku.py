@@ -1,3 +1,4 @@
+# mac请将 '\\' 换成 '/'
 import asyncio, aiohttp, os, shutil
 from time import time
 from lxml import etree
@@ -6,16 +7,14 @@ from tqdm import tqdm
 
 ids = []
 good_ids = []
+bad_ids = []
 hrefs = []
 fail_url_list = []
 n = 0
+file_num = 0
 start_date = input('输入开始日期（例：2020-01-01）：')
 end_date = input('输入结束日期（例：2020-02-01）：')
 url = f'https://idol.sankakucomplex.com/?tags=date%3A{start_date}..{end_date}%20order%3Aquality'
-# 新建文件夹
-b = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\'
-if not os.path.exists(b):
-    os.makedirs(b)
 
 header = {
     'Accept-Encoding': 'gzip, deflate, br',
@@ -38,11 +37,27 @@ async def main():
             # 保存id
             save_id()
             # 获取url
-            sem = asyncio.Semaphore(4)
-            tasks = [get_href(session, sem, img_id) for img_id in good_ids]
-            await asyncio.gather(*tasks)
+            try:
+                sem = asyncio.Semaphore(5)
+                tasks = [get_href(session, sem, img_id) for img_id in good_ids]
+                await asyncio.gather(*tasks)
+            except:
+                rewrite()
+                return
+            # 重新获取失败url
+            try:
+                for _ in range(3):
+                    if bad_ids:
+                        print('开始重新获取...')
+                        tasks = [get_href(session, sem, img_id, fail=True) for img_id in bad_ids]
+                        await asyncio.gather(*tasks)
+            except:
+                rewrite()
+                return
             # 保存url
             save_href()
+            # 新建文件夹
+            new_dir()
             # 下载
             tasks = [download(session, sem, href) for href in hrefs]
             await asyncio.gather(*tasks)
@@ -59,15 +74,21 @@ async def main():
                 with open('fail_sankaku.txt', 'a') as f:
                     for i in fail_url_list:
                         f.write(i + '\n')
-            print(f'{len(good_ids) - len(fail_url_list)}张图片下载完成')
+            print(f'{len(hrefs) - len(fail_url_list)}个文件下载完成')
             # 文件分类
             file_type()
+
 
 
 async def get_id(session, url, n):
     '''爬取图片id'''
     global ids
-    response = await session.get(url, headers=header)
+    try:
+        response = await session.get(url, headers=header)
+    except:
+        print('connect error...try again')
+        await asyncio.sleep(10)
+        response = await session.get(url, headers=header)
     if n == 0:
         if response.status == 200:
             print('HTTP:200 连接成功')
@@ -101,7 +122,7 @@ def save_id():
     global good_ids, old_ids
     with open('id.txt', 'r') as f:
         old_ids = f.read().splitlines()
-        print(f'已爬取{len(old_ids)}张图片')
+        print(f'已爬取{len(old_ids)}次')
         for i in ids:
             if i not in old_ids:
                 good_ids.append(i)
@@ -116,33 +137,67 @@ def save_id():
         print('没有新图')
 
 
-async def get_href(session, sem, img_id):
-    global hrefs
+
+async def get_href(session, sem, img_id, fail=False):
+    '''获取url'''
+    global hrefs, bad_ids
     async with sem:
-        print(f'开始解析：{img_id}')
         url = 'https://idol.sankakucomplex.com/post/show/' + str(img_id)
-        response = await session.get(url, headers=header)
+        try:
+            response = await session.get(url, headers=header)
+        except:
+            print('connect error...try again')
+            await asyncio.sleep(10)
+            response = await session.get(url, headers=header)
         html = await response.text()
         tree = etree.HTML(html)
         try:
             href = 'https:' + tree.xpath('//*[@id="image"]/@src')[0]
+            print(href)
+            if fail:
+                bad_ids.remove(img_id)
         except IndexError:
+            print(f'解析失败：{img_id}')
+            if not fail:
+                bad_ids.append(img_id)
+            await asyncio.sleep(1)
             return
         hrefs.append(href)
-        await asyncio.sleep(2)
+        await asyncio.sleep(3)
+
+
+
+def rewrite():
+    '''恢复文本'''
+    with open('id.txt', 'w') as f:
+        for i in old_ids:
+            f.write(i + '\n')
+        print('连接中断，已恢复id.txt')
+
+
+
+def new_dir():
+    global b
+    '''新建文件夹'''
+    b = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\'
+    if not os.path.exists(b):
+        os.makedirs(b)
+
 
 
 async def download(session, sem, href, fail=False):
-    global fail_url_list
+    '''下载'''
+    global fail_url_list, file_num
     async with sem:
+        file_num += 1
         if '.jpg?' or '.png?' in href:
-            filename = b + href.split('?')[-1] + '.jpg'
+            filename = b + str(file_num) + '.jpg'
         if '.mp4?' in href:
-            filename = b + href.split('?')[-1] + '.mp4'
+            filename = b + str(file_num) + '.mp4'
         if '.gif?' in href:
-            filename = b + href.split('?')[-1] + '.gif'
+            filename = b + str(file_num) + '.gif'
         if '.webm?' in href:
-            filename = b + href.split('?')[-1] + '.webm'
+            filename = b + str(file_num) + '.webm'
         
         response = await session.get(href, headers=download_header)
         try:
@@ -167,7 +222,7 @@ async def download(session, sem, href, fail=False):
             try:
                 response = await session.get(href, headers=download_header_)
                 with open(filename, 'ab') as f:
-                    with tqdm(total=file_size, initial=first_byte, unit='B', unit_scale=True, desc=href.split('?')[-1], ncols=100) as pbar:
+                    with tqdm(total=file_size, initial=first_byte, unit='B', unit_scale=True, desc= str(file_num), ncols=85) as pbar:
                         while True:
                             chunk = await response.content.read(1024)
                             if not chunk:
@@ -191,10 +246,12 @@ def save_href():
     with open('href.txt', 'a') as f:
         for i in hrefs:
             f.write(i + '\n')
+    print(f'{len(hrefs)}个url保存成功')
 
 
 
 def file_type():
+    '''文件分类'''
     mp4 = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\' + 'mp4'
     webm = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\' + 'webm'
     gif = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\' + 'gif'
@@ -217,19 +274,14 @@ def file_type():
 
 
 
-
 def run_main():
+    '''运行'''
     try:
         loop = asyncio.get_event_loop()
         future = asyncio.ensure_future(main())
         loop.run_until_complete(future)
-        loop.run_until_complete(asyncio.sleep(0.250))
-        loop.close()
     except (aiohttp.client_exceptions.ClientConnectionError, asyncio.exceptions.TimeoutError):
-        print('Connect Error')
-        with open('id.txt', 'w') as f:
-            for i in old_ids:
-                f.write(i + '\n')
+        print('网络连接中断，建议使用代理')
         input('回车以结束程序...')
 
 if __name__ == "__main__":
