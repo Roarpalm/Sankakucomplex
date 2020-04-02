@@ -75,8 +75,6 @@ async def main():
                     for i in fail_url_list:
                         f.write(i + '\n')
             print(f'{len(hrefs) - len(fail_url_list)}个文件下载完成')
-            # 文件分类
-            file_type()
 
 
 
@@ -177,11 +175,20 @@ def rewrite():
 
 
 def new_dir():
-    global b
+    global b, mp4, webm, gif
     '''新建文件夹'''
     b = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\'
+    mp4 = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\' + 'mp4'
+    webm = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\' + 'webm'
+    gif = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\' + 'gif'
     if not os.path.exists(b):
         os.makedirs(b)
+    if not os.path.exists(mp4):
+        os.makedirs(mp4)
+    if not os.path.exists(gif):
+        os.makedirs(gif)
+    if not os.path.exists(webm):
+        os.makedirs(webm)
 
 
 
@@ -193,11 +200,11 @@ async def download(session, sem, href, fail=False):
         if '.jpg?' or '.png?' in href:
             filename = b + str(file_num) + '.jpg'
         if '.mp4?' in href:
-            filename = b + str(file_num) + '.mp4'
+            filename = mp4 + str(file_num) + '.mp4'
         if '.gif?' in href:
-            filename = b + str(file_num) + '.gif'
+            filename = gif + str(file_num) + '.gif'
         if '.webm?' in href:
-            filename = b + str(file_num) + '.webm'
+            filename = webm + str(file_num) + '.webm'
         
         response = await session.get(href, headers=download_header)
         try:
@@ -247,30 +254,6 @@ def save_href():
         for i in hrefs:
             f.write(i + '\n')
     print(f'{len(hrefs)}个url保存成功')
-
-
-
-def file_type():
-    '''文件分类'''
-    mp4 = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\' + 'mp4'
-    webm = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\' + 'webm'
-    gif = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\' + 'gif'
-    if not os.path.exists(mp4):
-        os.makedirs(mp4)
-    if not os.path.exists(gif):
-        os.makedirs(gif)
-    if not os.path.exists(webm):
-        os.makedirs(webm)
-
-    now_list = os.listdir(b)
-    for i in now_list:
-        filename = os.path.join(b, i)
-        if i.split('.')[-1] == 'mp4':
-            shutil.move(filename, mp4)
-        if i.split('.')[-1] == 'webm':
-            shutil.move(filename, webm)
-        if i.split('.')[-1] == 'gif':
-            shutil.move(filename, gif)
 
 
 
