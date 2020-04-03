@@ -2,13 +2,13 @@ import asyncio, aiohttp
 from time import time
 from lxml import etree
 from bs4 import BeautifulSoup
+from GUI import windows
 
 ids = []
 good_ids = []
 n = 0
-start_date = input('输入开始日期（例：2020-01-01）：')
-end_date = input('输入结束日期（例：2020-02-01）：')
-url = f'https://idol.sankakucomplex.com/?tags=date%3A{start_date}..{end_date}%20order%3Aquality'
+date = windows().main()
+url = f'https://idol.sankakucomplex.com/?tags=date%3A{date}%20order%3Aquality'
 
 header = {
     'Accept-Encoding': 'gzip, deflate, br',
