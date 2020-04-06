@@ -1,4 +1,3 @@
-# mac请将 '\\' 换成 '/'
 import asyncio, aiohttp, os
 from time import time
 from tqdm import tqdm
@@ -49,10 +48,10 @@ async def main():
 def new_dir():
     global b, mp4, webm, gif
     '''新建文件夹'''
-    b = os.path.abspath('.') + '\\' + name +'\\'
-    mp4 = os.path.abspath('.') + '\\' + name +'\\' + 'mp4\\'
-    webm = os.path.abspath('.') + '\\' + name +'\\' + 'webm\\'
-    gif = os.path.abspath('.') + '\\' + name +'\\' + 'gif\\'
+    b = os.path.abspath('.') + os.sep + name + os.sep
+    mp4 = os.path.abspath('.') + os.sep + name + os.sep + 'mp4' + os.sep
+    webm = os.path.abspath('.') + os.sep + name + os.sep + 'webm' + os.sep
+    gif = os.path.abspath('.') + os.sep + name + os.sep + 'gif' + os.sep
     if not os.path.exists(b):
         os.makedirs(b)
     if not os.path.exists(mp4):
@@ -80,6 +79,8 @@ async def download(session, sem, href, fail=False):
         response = await session.get(href, headers=download_header)
         try:
             file_size = int(response.headers['content-length'])
+            if file_size > 20000000:
+                return
         except Exception as e:
             print(f'{e}\n请手动打开{href}')
         else:
@@ -89,7 +90,7 @@ async def download(session, sem, href, fail=False):
             else:
                 first_byte = 0
             if first_byte >= file_size:
-                print(f'已存在\n')
+                print('已存在')
                 return
             # 从断点继续下载
             download_header_ = {

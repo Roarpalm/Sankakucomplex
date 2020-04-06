@@ -1,10 +1,9 @@
-import asyncio, aiohttp
+import asyncio, aiohttp, aiofiles
 from time import time
 from lxml import etree
 
 bad_ids = []
-hrefs = []
-
+input('在第一次运行前请先清空href.txt，回车以继续...')
 header = {
     'Accept-Encoding': 'gzip, deflate, br',
     'Accept-Language': 'zh-CN,zh;q=0.9',
@@ -14,7 +13,7 @@ header = {
 
 async def get_href(session, sem, img_id, fail=False):
     '''获取url'''
-    global hrefs, bad_ids
+    global bad_ids
     async with sem:
         url = 'https://idol.sankakucomplex.com/post/show/' + str(img_id)
         try:
@@ -33,26 +32,42 @@ async def get_href(session, sem, img_id, fail=False):
         tree = etree.HTML(html)
         try:
             href = 'https:' + tree.xpath('//*[@id="image"]/@src')[0]
-            print(href)
             if fail:
                 bad_ids.remove(img_id)
         except IndexError:
             print('Error 429 too many requests - please slow down...')
             if not fail:
                 bad_ids.append(img_id)
-            await asyncio.sleep(120)
+            await asyncio.sleep(150)
             return
-        hrefs.append(href)
+        if href not in old_hrefs:
+            print(href)
+            async with aiofiles.open('href.txt', 'a') as f:
+                await f.write(href + '\n')
+                await asyncio.sleep(0.1)
+            async with aiofiles.open('all href.txt', 'a') as f:
+                await f.write(href + '\n')
+                await asyncio.sleep(0.1)
+            async with aiofiles.open('id.txt', 'r+') as f:
+                read_data = await f.read()
+                await f.seek(0)
+                await f.truncate()
+                await f.write(read_data.replace(img_id, ''))
         await asyncio.sleep(1)
 
 async def main():
     async with aiohttp.connector.TCPConnector(limit=300, force_close=True, enable_cleanup_closed=True, verify_ssl=False) as tc:
         async with aiohttp.ClientSession(connector=tc) as session:
+            global old_hrefs, good_ids
             with open('id.txt', 'r') as f:
                 good_ids = f.read().splitlines()
+            
+            with open('all href.txt', 'r') as f:
+                old_hrefs = f.read().splitlines()
+                print(f'已爬取{len(old_hrefs)}次')
 
             sem = asyncio.Semaphore(5)
-            tasks = [get_href(session, sem, img_id) for img_id in good_ids]
+            tasks = [get_href(session, sem, img_id) for img_id in good_ids if img_id]
             await asyncio.gather(*tasks)
 
             for _ in range(5):
@@ -62,7 +77,6 @@ async def main():
                     await asyncio.gather(*tasks)
                 else:
                     break
-            save_href()
 
 def run_main():
     '''运行'''
@@ -74,26 +88,6 @@ def run_main():
         print('网络连接中断，建议使用代理')
         input('回车以结束程序...')
 
-def save_href():
-    '''保存图片url并去重'''
-    good_hrefs = []
-    with open('all href.txt', 'r') as f:
-        old_hrefs = f.read().splitlines()
-        print(f'已爬取{len(old_hrefs)}次')
-        for i in hrefs:
-            if i not in old_hrefs:
-                good_hrefs.append(i)
-        print(f'删除{len(hrefs)-len(good_hrefs)}个重复url')
-    if good_hrefs:
-        # 保存
-        with open('href.txt', 'w') as f:
-            for i in good_hrefs:
-                f.write(i + '\n')
-            print(f'新增{len(good_hrefs)}个url到文本')
-        # 备份
-        with open('all href.txt', 'a') as f:
-            for i in good_hrefs:
-                f.write(i + '\n')
 
 if __name__ == "__main__":
     start = time()
