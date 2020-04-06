@@ -1,4 +1,3 @@
-# mac请将 '\\' 换成 '/'
 import asyncio, aiohttp, os, shutil
 from time import time
 from lxml import etree
@@ -96,10 +95,10 @@ async def get_href(session, sem, img_id):
 def new_dir():
     '''新建文件夹'''
     global b, mp4, webm, gif
-    b = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\'
-    mp4 = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\' + 'mp4\\'
-    webm = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\' + 'webm\\'
-    gif = os.path.abspath('.') + '\\' + f'{start_date}..{end_date}' +'\\' + 'gif\\'
+    b = os.path.abspath('.') + os.sep + f'{start_date}..{end_date}' + os.sep
+    mp4 = os.path.abspath('.') + os.sep + f'{start_date}..{end_date}' + os.sep + 'mp4' + os.sep
+    webm = os.path.abspath('.') + os.sep + f'{start_date}..{end_date}' + os.sep + 'webm' + os.sep
+    gif = os.path.abspath('.') + os.sep + f'{start_date}..{end_date}' + os.sep + 'gif' + os.sep
     if not os.path.exists(b):
         os.makedirs(b)
     if not os.path.exists(mp4):
