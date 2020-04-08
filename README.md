@@ -4,9 +4,6 @@
 ### all href.txt:
 用以保存已解析的url
 
-### fail_sankaku.txt:
-用以保存下载失败的url，建议手动复制进浏览器打开
-
 ### id.txt:
 用以保存当前任务爬取的id
 
