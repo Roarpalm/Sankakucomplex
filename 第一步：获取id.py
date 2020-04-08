@@ -39,7 +39,7 @@ async def get_id(session, url, n):
             print('HTTP:200 连接成功')
         else:
             print(f'HTTP:{response.status} 连接失败')
-    print(f'开始解析第{n + 1}页')
+    print(f'开始解析第{n + 1}页...')
     html = await response.text()
     bf = BeautifulSoup(html, 'lxml')
     classes = bf.find_all('span', {'class':'thumb blacklisted'})
@@ -90,7 +90,7 @@ def run_main():
         future = asyncio.ensure_future(main())
         loop.run_until_complete(future)
     except (aiohttp.client_exceptions.ClientConnectionError, asyncio.exceptions.TimeoutError):
-        print('网络连接中断，建议使用代理')
+        print('网络连接中断，请再次尝试')
         input('回车以结束程序...')
 
 if __name__ == "__main__":

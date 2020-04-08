@@ -1,4 +1,4 @@
-import asyncio, aiohttp, os
+import asyncio, aiohttp, aiofiles, os
 from time import time
 from tqdm import tqdm
 
@@ -28,7 +28,7 @@ async def main():
                 hrefs = f.read().splitlines()
             # 下载
             sem = asyncio.Semaphore(5)
-            tasks = [download(session, sem, href) for href in hrefs]
+            tasks = [download(session, sem, href) for href in hrefs if href]
             await asyncio.gather(*tasks)
             # 失败重新下载
             for _ in range(3):
@@ -91,6 +91,11 @@ async def download(session, sem, href, fail=False):
                 first_byte = 0
             if first_byte >= file_size:
                 print('已存在')
+                async with aiofiles.open('href.txt', 'r+') as f:
+                    read_data = await f.read()
+                    await f.seek(0)
+                    await f.truncate()
+                    await f.write(read_data.replace(href, ''))
                 return
             # 从断点继续下载
             download_header_ = {
@@ -110,6 +115,13 @@ async def download(session, sem, href, fail=False):
                             pbar.update(len(chunk))
                 if fail:
                     fail_url_list.remove(href)
+
+                async with aiofiles.open('href.txt', 'r+') as f:
+                    read_data = await f.read()
+                    await f.seek(0)
+                    await f.truncate()
+                    await f.write(read_data.replace(href, ''))
+
             except Exception as e:
                 if fail:
                     print(f'重新下载失败，原因：{e}')
@@ -125,7 +137,7 @@ def run_main():
         future = asyncio.ensure_future(main())
         loop.run_until_complete(future)
     except (aiohttp.client_exceptions.ClientConnectionError, asyncio.exceptions.TimeoutError):
-        print('网络连接中断，建议使用代理')
+        print('网络连接中断，请再次尝试')
         input('回车以结束程序...')
 
 if __name__ == "__main__":
