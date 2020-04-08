@@ -7,9 +7,6 @@
 ### fail_sankaku.txt:
 用以保存下载失败的url，建议手动复制进浏览器打开
 
-### bad id.txt:
-用以保存解析失败的id
-
 ### id.txt:
 用以保存当前任务爬取的id
 
