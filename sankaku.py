@@ -1,7 +1,7 @@
 import tkinter as tk
 import tkinter.messagebox
 import asyncio, aiohttp, aiofiles, os
-from time import time
+from time import time, sleep
 from lxml import etree
 from tqdm import tqdm
 from bs4 import BeautifulSoup
@@ -24,6 +24,7 @@ class first():
             loop.run_until_complete(future)
         except (aiohttp.client_exceptions.ClientConnectionError, asyncio.exceptions.TimeoutError):
             tkinter.messagebox.showerror(title='错误', message='网络连接中断，请再次尝试第一步')
+            return
         print(f'用时{int((time()-start) // 60)}分{int((time()-start) % 60)}秒')
         tkinter.messagebox.showinfo(title='Hi!', message='第一步已完成')
 
@@ -130,10 +131,11 @@ class second():
             future = asyncio.ensure_future(self.main())
             loop.run_until_complete(future)
         except (aiohttp.client_exceptions.ClientConnectionError, asyncio.exceptions.TimeoutError):
+            sleep(10)
             with open('id.txt', 'r') as f:
-                all_id = f.read().splitlines()
+                new_id = f.read().splitlines()
                 true_id = []
-                for i in all_id:
+                for i in new_id:
                     if i:
                         true_id.append(i)
             with open('href.txt', 'w') as f:
