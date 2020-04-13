@@ -132,15 +132,6 @@ class second():
             loop.run_until_complete(future)
         except (aiohttp.client_exceptions.ClientConnectionError, asyncio.exceptions.TimeoutError):
             sleep(10)
-            with open('id.txt', 'r') as f:
-                new_id = f.read().splitlines()
-                true_id = []
-                for i in new_id:
-                    if i:
-                        true_id.append(i)
-            with open('href.txt', 'w') as f:
-                for i in true_id:
-                    f.write(i + '\n')
             self.run_main()
         print(f'用时{int((time()-start) // 60)}分{int((time()-start) % 60)}秒')
         tkinter.messagebox.showinfo(title='Hi!', message='第二步已完成')
@@ -175,9 +166,9 @@ class second():
             try:
                 response = await session.get(url, headers=header)
             except:
-                # 请求失败等待10秒再次请求
+                # 请求失败等待20秒再次请求
                 print('connect error...try again...')
-                await asyncio.sleep(10)
+                await asyncio.sleep(20)
                 response = await session.get(url, headers=header)
             if response.status != 200:
                 # 请求过于频繁，等待150秒
@@ -213,7 +204,7 @@ class second():
                     read_data = await f.read()
                     await f.seek(0)
                     await f.truncate()
-                    await f.write(read_data.replace(img_id, ''))
+                    await f.write(read_data.replace(f'{img_id}\n', ''))
             await asyncio.sleep(1)
 
 
@@ -236,16 +227,7 @@ class third():
             future = asyncio.ensure_future(self.main())
             loop.run_until_complete(future)
         except (aiohttp.client_exceptions.ClientConnectionError, asyncio.exceptions.TimeoutError):
-            # 清除空行
-            with open('href.txt', 'r') as f:
-                all_href = f.read().splitlines()
-                true_href = []
-                for i in all_href:
-                    if i:
-                        true_href.append(i)
-            with open('href.txt', 'w') as f:
-                for i in true_href:
-                    f.write(i + '\n')
+            sleep(10)
             self.run_main()
         print(f'用时{int((time()-start) // 60)}分{int((time()-start) % 60)}秒')
         tkinter.messagebox.showinfo(title='Hi!', message='第三步已完成')
@@ -320,7 +302,7 @@ class third():
                         read_data = await f.read()
                         await f.seek(0)
                         await f.truncate()
-                        await f.write(read_data.replace(href, ''))
+                        await f.write(read_data.replace(f'{href}\n', ''))
                     return
                 # 从断点继续下载
                 download_header_ = {
@@ -345,7 +327,7 @@ class third():
                         read_data = await f.read()
                         await f.seek(0)
                         await f.truncate()
-                        await f.write(read_data.replace(href, ''))
+                        await f.write(read_data.replace(f'{href}\n', ''))
 
                 except Exception as e:
                     if not fail:
