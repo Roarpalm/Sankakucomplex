@@ -1,15 +1,17 @@
 import tkinter as tk
 import tkinter.messagebox
-import asyncio, aiohttp, aiofiles, os
+import asyncio, aiohttp, aiofiles, os, threading
 from time import time, sleep
 from lxml import etree
 from tqdm import tqdm
 from bs4 import BeautifulSoup
 
-
 class first():
     '''爬排行榜，获取id'''
     def __init__(self):
+        b1['state'] = 'disabled'
+        b2['state'] = 'disabled'
+        b3['state'] = 'disabled'
         self.ids = []
         self.good_ids = []
         self.n = 0
@@ -19,14 +21,15 @@ class first():
 
         start = time()
         try:
-            loop = asyncio.get_event_loop()
-            future = asyncio.ensure_future(self.main())
-            loop.run_until_complete(future)
+            asyncio.run(self.main())
         except (aiohttp.client_exceptions.ClientConnectionError, asyncio.exceptions.TimeoutError):
             tkinter.messagebox.showerror(title='错误', message='网络连接中断，请再次尝试第一步')
             return
         print(f'用时{int((time()-start) // 60)}分{int((time()-start) % 60)}秒')
         tkinter.messagebox.showinfo(title='Hi!', message='第一步已完成')
+        b1['state'] = 'normal'
+        b2['state'] = 'normal'
+        b3['state'] = 'normal'
 
     async def main(self):
         async with aiohttp.connector.TCPConnector(limit=300, force_close=True, enable_cleanup_closed=True, verify_ssl=False) as tc:
@@ -118,18 +121,22 @@ class first():
 class second():
     '''通过id获取url'''
     def __init__(self):
+        b1['state'] = 'disabled'
+        b2['state'] = 'disabled'
+        b3['state'] = 'disabled'
         self.bad_ids = []
         with open('all href.txt', 'r') as f:
             self.old_hrefs = f.read().splitlines()
             print(f'已爬取{len(self.old_hrefs)}次')
         self.run_main()
+        b1['state'] = 'normal'
+        b2['state'] = 'normal'
+        b3['state'] = 'normal'
 
     def run_main(self):
         start = time()
         try:
-            loop = asyncio.get_event_loop()
-            future = asyncio.ensure_future(self.main())
-            loop.run_until_complete(future)
+            asyncio.run(self.main())
         except (aiohttp.client_exceptions.ClientConnectionError, asyncio.exceptions.TimeoutError):
             sleep(10)
             self.run_main()
@@ -212,6 +219,9 @@ class second():
 class third():
     '''通过url下载文件'''
     def __init__(self):
+        b1['state'] = 'disabled'
+        b2['state'] = 'disabled'
+        b3['state'] = 'disabled'
         self.fail_url_list = []
         self.name = f'{e1.get()}..{e2.get()}'
         self.download_header = {
@@ -219,13 +229,14 @@ class third():
             'Upgrade-Insecure-Requests': '1',
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36'}
         self.run_main()
+        b1['state'] = 'normal'
+        b2['state'] = 'normal'
+        b3['state'] = 'normal'
 
     def run_main(self):
         start = time()
         try:
-            loop = asyncio.get_event_loop()
-            future = asyncio.ensure_future(self.main())
-            loop.run_until_complete(future)
+            asyncio.run(self.main())
         except (aiohttp.client_exceptions.ClientConnectionError, asyncio.exceptions.TimeoutError):
             sleep(10)
             self.run_main()
@@ -329,7 +340,7 @@ class third():
                         await f.truncate()
                         await f.write(read_data.replace(f'{href}\n', ''))
 
-                except Exception as e:
+                except:
                     if not fail:
                         # 保存下载失败的url在fail_url_list
                         self.fail_url_list.append(href)
@@ -340,25 +351,35 @@ header = {
     'Host': 'idol.sankakucomplex.com',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36'}
 
-win=tk.Tk() # 构造窗体
-win.title('Sankaku') # 给窗口的可视化起名字
-win.geometry('400x200')  # 设定窗口的大小(长 * 宽)
-# 文字
-l1 = tk.Label(win, text='开始日期：',font=('pingfang', 12))
-l1.place(x=80,y=30,anchor='s')
-l2 = tk.Label(win, text='结束日期：',font=('pingfang', 12))
-l2.place(x=260,y=30,anchor='s')
-# 输入框
-e1 = tk.Entry(win, show=None)
-e1.place(x=110,y=60,anchor='s')
-e2 = tk.Entry(win, show=None)
-e2.place(x=290,y=60,anchor='s')
-# 按钮
-b1 = tk.Button(win, text='第一步', font=('pingfang', 12), width=12, height=2, command=first)
-b1.place(x=80,y=180,anchor='s')
-b2 = tk.Button(win, text='第二步', font=('pingfang', 12), width=12, height=2, command=second)
-b2.place(x=200,y=180,anchor='s')
-b3 = tk.Button(win, text='第三步', font=('pingfang', 12), width=12, height=2, command=third)
-b3.place(x=320,y=180,anchor='s')
-# 进入消息循环
-win.mainloop()
+class Application(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        global b1, b2, b3, e1, e2
+        self.title('Sankaku') # 给窗口的可视化起名字
+        self.geometry('400x200')  # 设定窗口的大小(长 * 宽)
+        # 文字
+        l1 = tk.Label(self, text='开始日期：',font=('pingfang', 12))
+        l1.place(x=80,y=30,anchor='s')
+        l2 = tk.Label(self, text='结束日期：',font=('pingfang', 12))
+        l2.place(x=260,y=30,anchor='s')
+        # 输入框
+        e1 = tk.Entry(self, show=None)
+        e1.place(x=110,y=60,anchor='s')
+        e2 = tk.Entry(self, show=None)
+        e2.place(x=290,y=60,anchor='s')
+        # 按钮
+        b1 = tk.Button(self, text='第一步', font=('pingfang', 12), width=12, height=2, command=lambda :self.thread_it(first))
+        b1.place(x=80,y=180,anchor='s')
+        b2 = tk.Button(self, text='第二步', font=('pingfang', 12), width=12, height=2, command=lambda :self.thread_it(second))
+        b2.place(x=200,y=180,anchor='s')
+        b3 = tk.Button(self, text='第三步', font=('pingfang', 12), width=12, height=2, command=lambda :self.thread_it(third))
+        b3.place(x=320,y=180,anchor='s')
+
+    @staticmethod
+    def thread_it(func):
+        '''打包进线程'''
+        t = threading.Thread(target=func) 
+        t.setDaemon(True)
+        t.start() 
+
+Application().mainloop()

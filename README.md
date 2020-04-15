@@ -64,3 +64,17 @@
 
 ### 2020年4月13日更新(3.2):
 - 小修小补
+
+### 2020年4月15日更新(3.3):
+- 创建一个 tkinter 的类，再把程序打包进线程，用线程驱动协程，小窗口不会在执行任务时未响应了
+- 执行任务时禁用按钮
+- 把
+```python
+loop = asyncio.get_event_loop()
+future = asyncio.ensure_future(self.main())
+loop.run_until_complete(future)
+```
+- 替换为
+```python
+asyncio.run(self.main())
+```
