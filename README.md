@@ -78,3 +78,6 @@ loop.run_until_complete(future)
 ```python
 asyncio.run(self.main())
 ```
+
+### 2020年4月16日更新(3.4):
+- 小修小补

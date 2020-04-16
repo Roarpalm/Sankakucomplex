@@ -35,10 +35,10 @@ class first():
         async with aiohttp.connector.TCPConnector(limit=300, force_close=True, enable_cleanup_closed=True, verify_ssl=False) as tc:
             async with aiohttp.ClientSession(connector=tc) as session:
                 self.create_txt()
-                await self.get_id(session, self.url, self.n)
+                await self.get_id(session, self.url)
                 self.save_id()
             
-    async def get_id(self, session, url, n):
+    async def get_id(self, session, url):
         '''爬取图片id'''
         try:
             response = await session.get(url, headers=header)
@@ -51,7 +51,7 @@ class first():
                 print('HTTP:200 连接成功')
             else:
                 print(f'HTTP:{response.status} 连接失败')
-        print(f'开始解析第{n + 1}页...')
+        print(f'开始解析第{self.n + 1}页...')
         
         html = await response.text()
         bf = BeautifulSoup(html, 'lxml')
@@ -73,26 +73,22 @@ class first():
         next_url = 'https://idol.sankakucomplex.com/post/index.content' + next_page
         await asyncio.sleep(3)
         # n为下拉次数，既一个月份的页数
-        if self.n < 40:
-            await self.get_id(session, next_url, self.n)
+        if self.n < 30:
+            await self.get_id(session, next_url)
 
     def create_txt(self):
         '''首次运行创建文本文件'''
-        id_ = 'id.txt'
-        all_id_ = 'all id.txt'
-        href_ = 'href.txt'
-        all_href_ = 'all href.txt'
-        if not os.path.exists(id_):
-            f = open(id_, 'a')
+        if not os.path.exists('id.txt'):
+            f = open('id.txt', 'a')
             f.close()
-        if not os.path.exists(all_id_):
-            f = open(all_id_, 'a')
+        if not os.path.exists('all id.txt'):
+            f = open('all id.txt', 'a')
             f.close()
-        if not os.path.exists(href_):
-            f = open(href_, 'a')
+        if not os.path.exists('href.txt'):
+            f = open('href.txt', 'a')
             f.close()
-        if not os.path.exists(all_href_):
-            f = open(all_href_, 'a')
+        if not os.path.exists('all href.txt'):
+            f = open('all href.txt', 'a')
             f.close()
 
     def save_id(self):
@@ -148,17 +144,13 @@ class second():
             async with aiohttp.ClientSession(connector=tc) as session:
                 with open('id.txt', 'r') as f:
                     good_ids = f.read().splitlines()
-                    n = 0
-                    for i in good_ids:
-                        if i:
-                            n += 1
-                    print(f'即将爬取{n}个url...')
+                    print(f'即将爬取{len(good_ids)}个url...')
 
-                sem = asyncio.Semaphore(5)
+                sem = asyncio.Semaphore(4)
                 tasks = [self.get_href(session, sem, img_id) for img_id in good_ids if img_id]
                 await asyncio.gather(*tasks)
 
-                for _ in range(5):
+                for _ in range(3):
                     if self.bad_ids:
                         print('开始重新获取...')
                         tasks = [self.get_href(session, sem, img_id, fail=True) for img_id in self.bad_ids]
@@ -252,7 +244,7 @@ class third():
                 with open('href.txt', 'r') as f:
                     hrefs = f.read().splitlines()
                 # 下载
-                sem = asyncio.Semaphore(5)
+                sem = asyncio.Semaphore(10)
                 tasks = [self.download(session, sem, href) for href in hrefs if href]
                 await asyncio.gather(*tasks)
                 # 失败重新下载
@@ -382,4 +374,5 @@ class Application(tk.Tk):
         t.setDaemon(True)
         t.start() 
 
-Application().mainloop()
+if __name__ == "__main__":
+    Application().mainloop()
