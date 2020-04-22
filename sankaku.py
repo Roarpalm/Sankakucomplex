@@ -32,7 +32,7 @@ class first():
         b3['state'] = 'normal'
 
     async def main(self):
-        async with aiohttp.connector.TCPConnector(limit=300, force_close=True, enable_cleanup_closed=True, verify_ssl=False) as tc:
+        async with aiohttp.connector.TCPConnector(limit=300, force_close=True, enable_cleanup_closed=True, ssl=False) as tc:
             async with aiohttp.ClientSession(connector=tc) as session:
                 self.create_txt()
                 await self.get_id(session, self.url)
@@ -140,7 +140,7 @@ class second():
         tkinter.messagebox.showinfo(title='Hi!', message='第二步已完成')
 
     async def main(self):
-        async with aiohttp.connector.TCPConnector(limit=300, force_close=True, enable_cleanup_closed=True, verify_ssl=False) as tc:
+        async with aiohttp.connector.TCPConnector(limit=300, force_close=True, enable_cleanup_closed=True, ssl=False) as tc:
             async with aiohttp.ClientSession(connector=tc) as session:
                 with open('id.txt', 'r') as f:
                     good_ids = f.read().splitlines()
@@ -174,7 +174,7 @@ class second():
                 print('Error 429 too many requests - please slow down...')
                 if not fail:
                     self.bad_ids.append(img_id)
-                await asyncio.sleep(150)
+                await asyncio.sleep(180)
                 return
             html = await response.text()
             tree = etree.HTML(html)
@@ -186,7 +186,7 @@ class second():
                 print('Error 429 too many requests - please slow down...')
                 if not fail:
                     self.bad_ids.append(img_id)
-                await asyncio.sleep(150)
+                await asyncio.sleep(180)
                 return
             if href not in self.old_hrefs:
                 print(href)
@@ -236,7 +236,7 @@ class third():
         tkinter.messagebox.showinfo(title='Hi!', message='第三步已完成')
 
     async def main(self):
-        async with aiohttp.connector.TCPConnector(limit=300, force_close=True, enable_cleanup_closed=True, verify_ssl=False) as tc:
+        async with aiohttp.connector.TCPConnector(limit=300, force_close=True, enable_cleanup_closed=True, ssl=False) as tc:
             async with aiohttp.ClientSession(connector=tc) as session:
                 # 新建文件夹
                 self.new_dir()
@@ -273,6 +273,15 @@ class third():
 
 
 
+    async def rewrite(self, href):
+        async with aiofiles.open('href.txt', 'r+') as f:
+            read_data = await f.read()
+            await f.seek(0)
+            await f.truncate()
+            await f.write(read_data.replace(f'{href}\n', ''))
+
+
+
     async def download(self,session, sem, href, fail=False):
         '''下载'''
         async with sem:
@@ -291,8 +300,9 @@ class third():
                 # 大于20M的文件不下载
                 if file_size > 20000000:
                     return
-            except Exception as e:
-                print(f'{e}\n请手动打开{href}')
+            except:
+                await self.rewrite(href)
+                return
             else:
                 if os.path.exists(filename):
                     # 读取文件大小
@@ -301,11 +311,7 @@ class third():
                     first_byte = 0
                 if first_byte >= file_size:
                     print('已存在')
-                    async with aiofiles.open('href.txt', 'r+') as f:
-                        read_data = await f.read()
-                        await f.seek(0)
-                        await f.truncate()
-                        await f.write(read_data.replace(f'{href}\n', ''))
+                    await self.rewrite(href)
                     return
                 # 从断点继续下载
                 download_header_ = {
@@ -325,13 +331,7 @@ class third():
                                 pbar.update(len(chunk))
                     if fail:
                         self.fail_url_list.remove(href)
-
-                    async with aiofiles.open('href.txt', 'r+') as f:
-                        read_data = await f.read()
-                        await f.seek(0)
-                        await f.truncate()
-                        await f.write(read_data.replace(f'{href}\n', ''))
-
+                    await self.rewrite(href)
                 except:
                     if not fail:
                         # 保存下载失败的url在fail_url_list
