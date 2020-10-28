@@ -7,18 +7,12 @@ from lxml import etree
 from tqdm import tqdm
 from bs4 import BeautifulSoup
 
-def rewrite(file, item):
-    '''从文件里移除文本'''
-    with open(file, "r+") as f:
-        data = f.read()
-        f.seek(0)
-        f.truncate()
-        f.write(data.replace(f'{item}\n', ''))
 class first():
     '''爬排行榜，获取id'''
     def __init__(self):
         b1['state'] = 'disabled'
         self.ids = []
+        self.good_ids = []
         self.n = 0
         self.start_date = e1.get()
         self.end_date = e2.get()
@@ -46,7 +40,7 @@ class first():
         try:
             response = await session.get(url, headers=header)
         except:
-            print("连接失败，10秒后重新连接...")
+            print('connect error...try again...')
             await asyncio.sleep(10)
             response = await session.get(url, headers=header)
         if self.n == 0:
@@ -61,7 +55,8 @@ class first():
         bf = BeautifulSoup(html, 'lxml')
         classes = bf.find_all('span', {'class':'thumb blacklisted'})
         for i in classes:
-            self.ids.append(i['id'].split('p')[-1])
+            id_ = i['id'].split('p')[-1]
+            self.ids.append(id_)
 
         # 获取下一页的Query String Parameters
         tree = etree.HTML(html)
@@ -70,7 +65,7 @@ class first():
                 next_page = tree.xpath('//*[@id="post-list"]/div[3]/div[1]/@next-page-url')[0]
             else:
                 next_page = tree.xpath('/html/body/div/@next-page-url')[0]
-        except:
+        except AttributeError:
             return
         self.n += 1
         next_url = 'https://idol.sankakucomplex.com/post/index.content' + next_page
@@ -93,19 +88,24 @@ class first():
 
     def save_id(self):
         '''保存图片id并去重'''
-        n = 0
-        with open("all id.txt", "r") as d:
-            old_ids = d.read().splitlines()
-            print(f"已爬取{len(old_ids)}次")
-        with open("id.txt", "a") as e:
-            with open("all id.txt", "a") as f:
+        with open('all id.txt', 'r') as f:
+            old_ids = f.read().splitlines()
+            print(f'已爬取{len(old_ids)}次')
+            for i in self.ids:
+                if i not in old_ids:
+                    self.good_ids.append(i)
+            print(f'删除{len(self.ids)-len(self.good_ids)}个重复url')
+        if self.good_ids:
+            # 保存
+            with open('id.txt', 'a') as f:
+                for i in self.good_ids:
+                    f.write(i + '\n')
+                print(f'新增{len(self.good_ids)}个url到文本')
+            # 备份
+            with open('all id.txt', 'a') as f:
                 f.write(f'{self.start_date}..{self.end_date}:\n')
-                for i in self.ids:
-                    if i not in old_ids:
-                        n += 1
-                        e.write(i + "\n")
-                        f.write(i + "\n")
-        print(f"新增{n}个id")
+                for i in self.good_ids:
+                    f.write(i + '\n')
 
 
 
@@ -131,11 +131,11 @@ class second():
         async with aiohttp.connector.TCPConnector(limit=300, force_close=True, enable_cleanup_closed=True, ssl=False) as tc:
             async with aiohttp.ClientSession(connector=tc) as session:
                 with open('id.txt', 'r') as f:
-                    self.ids = f.read().splitlines()
-                    print(f'即将爬取{len(self.ids)}个url...')
+                    good_ids = f.read().splitlines()
+                    print(f'即将爬取{len(good_ids)}个url...')
 
                 sem = asyncio.Semaphore(4)
-                tasks = [self.get_href(session, sem, img_id) for img_id in self.ids if img_id]
+                tasks = [self.get_href(session, sem, img_id) for img_id in good_ids if img_id]
                 await asyncio.gather(*tasks)
 
                 for _ in range(3):
@@ -154,26 +154,27 @@ class second():
                 response = await session.get(url, headers=header)
             except:
                 # 请求失败等待20秒再次请求
-                print('连接失败，20秒重新连接...')
+                print('connect error...try again...')
                 await asyncio.sleep(20)
                 response = await session.get(url, headers=header)
             if response.status != 200:
                 # 请求过于频繁，等待150秒
-                print("请求过于频繁，2分钟后重新开始")
+                print('Error 429 too many requests - please slow down...')
                 if not fail:
                     self.bad_ids.append(img_id)
-                await asyncio.sleep(120)
+                await asyncio.sleep(180)
                 return
-            tree = etree.HTML(await response.text())
+            html = await response.text()
+            tree = etree.HTML(html)
             try:
                 href = 'https:' + tree.xpath('//*[@id="image"]/@src')[0]
                 if fail:
                     self.bad_ids.remove(img_id)
             except IndexError:
-                print("请求过于频繁，2分钟后重新开始")
+                print('Error 429 too many requests - please slow down...')
                 if not fail:
                     self.bad_ids.append(img_id)
-                await asyncio.sleep(120)
+                await asyncio.sleep(180)
                 return
             print(href)
             # 保存一份在href.txt
@@ -181,7 +182,11 @@ class second():
                 await f.write(href + '\n')
                 await asyncio.sleep(0.1)
             # 将已爬的img_id从id.txt中删除
-            rewrite("id.txt", img_id)
+            async with aiofiles.open('id.txt', 'r+') as f:
+                read_data = await f.read()
+                await f.seek(0)
+                await f.truncate()
+                await f.write(read_data.replace(f'{img_id}\n', ''))
             await asyncio.sleep(1)
 
 
@@ -190,7 +195,7 @@ class third():
     '''通过url下载文件'''
     def __init__(self):
         b3['state'] = 'disabled'
-        self.n = 0
+        self.fail_url_list = []
         self.name = f'{e1.get()}..{e2.get()}'
         self.download_header = {
             'Sec-Fetch-Dest': 'document',
@@ -222,12 +227,13 @@ class third():
                 tasks = [self.download(session, sem, href) for href in hrefs if href]
                 await asyncio.gather(*tasks)
                 # 失败重新下载
-                with open("fail.txt", "r") as f:
-                    fail_url_list = f.read().splitlines()
-                    if fail_url_list:
+                for _ in range(3):
+                    if self.fail_url_list:
                         print('开始重新下载...')
-                        tasks = [self.download(session, sem, href, fail=True) for href in fail_url_list]
+                        tasks = [self.download(session, sem, href, fail=True) for href in self.fail_url_list]
                         await asyncio.gather(*tasks)
+                    else:
+                        break
 
     def new_dir(self):
         '''新建文件夹'''
@@ -243,6 +249,17 @@ class third():
             os.makedirs(self.gif)
         if not os.path.exists(self.webm):
             os.makedirs(self.webm)
+
+
+
+    async def rewrite(self, href):
+        async with aiofiles.open('href.txt', 'r+') as f:
+            read_data = await f.read()
+            await f.seek(0)
+            await f.truncate()
+            await f.write(read_data.replace(f'{href}\n', ''))
+
+
 
     async def download(self,session, sem, href, fail=False):
         '''下载'''
@@ -265,38 +282,41 @@ class third():
                 if file_size > 20000000:
                     return
             except:
-                rewrite("href.txt", href)
+                await self.rewrite(href)
                 return
             else:
                 if os.path.exists(filename):
                     # 读取文件大小
                     first_byte = os.path.getsize(filename)
-                    if first_byte >= file_size:
-                        print(f"已存在：{href}")
-                        rewrite("href.txt", href)
-                        return
-                    # 从断点继续下载
-                    download_header_ = {
-                        'Sec-Fetch-Dest': 'document',
-                        'Upgrade-Insecure-Requests': '1',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36',
-                        'Range': f'bytes={first_byte}-{file_size}'}
-                    response = await session.get(href, headers=download_header_)
                 else:
                     first_byte = 0
-
+                if first_byte >= file_size:
+                    print('已存在')
+                    await self.rewrite(href)
+                    return
+                # 从断点继续下载
+                download_header_ = {
+                    'Sec-Fetch-Dest': 'document',
+                    'Upgrade-Insecure-Requests': '1',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.149 Safari/537.36',
+                    'Range': f'bytes={first_byte}-{file_size}'}
                 try:
+                    response = await session.get(href, headers=download_header_)
                     with open(filename, 'ab') as f:
-                        f.write(await response.content.read())
-                    self.n += 1
-                    print(f"第{self.n}个文件下载完成")
+                        with tqdm(total=file_size, initial=first_byte, unit='B', unit_scale=True, desc=href.split('=')[-1], ncols=85) as pbar:
+                            while True:
+                                chunk = await response.content.read(1024)
+                                if not chunk:
+                                    break
+                                f.write(chunk)
+                                pbar.update(len(chunk))
                     if fail:
-                        rewrite("fail.txt", href)
-                    rewrite("href.txt", href)
+                        self.fail_url_list.remove(href)
+                    await self.rewrite(href)
                 except:
                     if not fail:
-                        with open("fail.txt", "a") as f:
-                            f.write(href + "\n")
+                        # 保存下载失败的url在fail_url_list
+                        self.fail_url_list.append(href)
 
 header = {
     'Accept-Encoding': 'gzip, deflate, br',

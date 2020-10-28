@@ -1,11 +1,11 @@
 ### all id.txt:
 用以保存已爬取的id，避免重复爬取
 
-### all href.txt:
-用以保存已解析的url
-
 ### id.txt:
 用以保存当前任务爬取的id
+
+### fail.txt:
+用以保存下载失败的url
 
 ### href.txt:
 用以保存当前任务解析的url
@@ -86,3 +86,6 @@ asyncio.run(self.main())
 - 小修小补
 - 最近实验得知，通过id解析出来的url是有时效性的，具体时长未知。过了时效再去打开这些url通通变成14.7k的sankaku logo
 - 爬好的id可以存着，href及时下载
+
+### 2020年10月28日更新(3.6):
+- 增加程序稳定性
